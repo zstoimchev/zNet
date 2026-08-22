@@ -1,15 +1,15 @@
 use crate::network::manager::NetworkManager;
-use std::net::{TcpListener, TcpStream};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Server {
-    address: String,
+    address: SocketAddr,
     network_manager: Arc<NetworkManager>,
 }
 
 impl Server {
-    pub fn new(address: String, network_manager: Arc<NetworkManager>) -> Self {
+    pub fn new(address: SocketAddr, network_manager: Arc<NetworkManager>) -> Self {
         Self {
             address,
             network_manager,
@@ -23,14 +23,10 @@ impl Server {
 
         for stream in listener.incoming() {
             match stream {
-                Ok(stream) => self.handle_connection(stream),
+                Ok(stream) => self.network_manager.handle_connection(stream),
                 Err(error) => self.handle_error(error),
             }
         }
-    }
-
-    fn handle_connection(&self, stream: TcpStream) {
-        self.network_manager.handle_connection(stream);
     }
 
     fn handle_error(&self, error: std::io::Error) {

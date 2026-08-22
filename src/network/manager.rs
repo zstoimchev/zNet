@@ -1,17 +1,34 @@
+use crate::network::config::NetworkConfig;
 use crate::network::connection::PeerConnection;
+use crate::network::server::Server;
 use std::collections::HashMap;
 use std::net::{SocketAddr, TcpStream};
 use std::sync::{Arc, Mutex};
+use std::thread;
 
 pub struct NetworkManager {
+    config: NetworkConfig,
     connections: Mutex<HashMap<SocketAddr, TcpStream>>,
 }
 
 impl NetworkManager {
     pub fn new() -> Self {
         Self {
+            config: NetworkConfig::new(12137),
             connections: Mutex::new(HashMap::new()),
         }
+    }
+
+    pub fn start_network(self: &Arc<Self>) {
+        self.start_server();
+    }
+
+    fn start_server(self: &Arc<Self>) {
+        let server = Server::new(self.config.socket_address(), Arc::clone(self));
+
+        thread::spawn(move || {
+            server.start();
+        });
     }
 
     pub fn handle_connection(self: &Arc<Self>, stream: TcpStream) {
