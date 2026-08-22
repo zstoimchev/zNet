@@ -1,26 +1,31 @@
+use crate::network::manager::NetworkManager;
 use std::io::Read;
 use std::net::{SocketAddr, TcpStream};
+use std::sync::Arc;
 use std::thread;
 
 pub struct PeerConnection {
     stream: TcpStream,
+    network_manager: Arc<NetworkManager>,
 }
 
 impl PeerConnection {
-    pub fn new(stream: TcpStream) -> Self {
-        Self { stream }
+    pub fn new(stream: TcpStream, network_manager: Arc<NetworkManager>) -> Self {
+        Self {
+            stream,
+            network_manager,
+        }
     }
 
-    pub fn spawn(stream: TcpStream) {
+    pub fn spawn(stream: TcpStream, network_manager: Arc<NetworkManager>) {
         thread::spawn(move || {
-            let mut connection: PeerConnection = Self::new(stream);
+            let mut connection = Self::new(stream, network_manager);
             connection.run();
         });
     }
 
     fn run(&mut self) {
         let address: SocketAddr = self.stream.peer_addr().unwrap();
-
         println!("Connection opened: {}", address);
 
         let mut buffer = [0; 1024];
@@ -35,6 +40,7 @@ impl PeerConnection {
     }
 
     fn handle_close(&self, address: SocketAddr) {
+        self.network_manager.remove_connection(address);
         println!("Connection closed: {}", address);
     }
 
