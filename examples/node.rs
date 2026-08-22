@@ -2,7 +2,9 @@ use std::thread;
 use znet::znet::ZNet;
 
 fn main() {
-    ZNet::new("127.0.0.1:9000".to_string()).start();
+    let network = ZNet::new("127.0.0.1:9000".to_string());
+
+    network.start();
 
     loop {
         thread::park();

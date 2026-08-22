@@ -1,15 +1,17 @@
+pub type PeerId = u64;
+
 pub struct Peer {
-    id: u64,
+    id: PeerId,
     host: String,
     port: u16,
 }
 
 impl Peer {
-    pub fn new(id: u64, host: String, port: u16) -> Self {
+    pub fn new(id: PeerId, host: String, port: u16) -> Self {
         Self { id, host, port }
     }
 
-    pub fn id(&self) -> u64 {
+    pub fn id(&self) -> PeerId {
         self.id
     }
 
