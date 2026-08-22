@@ -1,20 +1,23 @@
 use crate::network::config::NetworkConfig;
 use crate::network::connection::PeerConnection;
+use crate::network::peer::Peer;
 use crate::network::server::Server;
 use std::collections::HashMap;
-use std::net::{SocketAddr, TcpStream};
+use std::net::TcpStream;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
 pub struct NetworkManager {
     config: NetworkConfig,
-    connections: Mutex<HashMap<SocketAddr, TcpStream>>,
+    peers: Mutex<HashMap<Vec<u8>, Peer>>,
+    connections: Mutex<HashMap<Vec<u8>, Arc<PeerConnection>>>,
 }
 
 impl NetworkManager {
-    pub fn new() -> Self {
+    pub fn new(config: NetworkConfig) -> Self {
         Self {
-            config: NetworkConfig::new(12137),
+            config,
+            peers: Mutex::new(HashMap::new()),
             connections: Mutex::new(HashMap::new()),
         }
     }
@@ -32,21 +35,30 @@ impl NetworkManager {
     }
 
     pub fn handle_connection(self: &Arc<Self>, stream: TcpStream) {
-        let address = stream.peer_addr().unwrap();
-        self.register_connection(address, &stream);
-        PeerConnection::spawn(stream, Arc::clone(self));
+        match PeerConnection::new(stream) {
+            Ok(connection) => Arc::new(connection).start(Arc::clone(self)),
+            Err(error) => println!("Failed to create connection: {}", error),
+        }
     }
 
-    fn register_connection(&self, address: SocketAddr, stream: &TcpStream) {
-        let stream = stream.try_clone().expect("Failed to clone TCP stream");
-        self.connections.lock().unwrap().insert(address, stream);
+    pub fn register_peer(&self, peer: Peer, connection: Arc<PeerConnection>) {
+        let public_key = peer.public_key().to_vec();
+        self.peers.lock().unwrap().insert(public_key.clone(), peer);
+        self.connections
+            .lock()
+            .unwrap()
+            .insert(public_key, connection);
     }
 
-    pub fn remove_connection(&self, address: SocketAddr) {
-        self.connections.lock().unwrap().remove(&address);
+    pub fn remove_connection(&self, public_key: &[u8]) {
+        self.connections.lock().unwrap().remove(public_key);
     }
 
-    pub fn connection_count(&self) -> usize {
-        self.connections.lock().unwrap().len()
+    pub fn local_port(&self) -> u16 {
+        self.config.port()
+    }
+
+    pub fn local_public_key(&self) -> &[u8] {
+        self.config.public_key()
     }
 }

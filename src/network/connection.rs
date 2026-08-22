@@ -1,51 +1,96 @@
 use crate::network::manager::NetworkManager;
-use std::io::Read;
+use crate::network::peer::Peer;
+use crate::protocol::handshake::HandshakeProtocol;
+use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 pub struct PeerConnection {
-    stream: TcpStream,
-    network_manager: Arc<NetworkManager>,
+    address: SocketAddr,
+    read_stream: Mutex<TcpStream>,
+    write_stream: Mutex<TcpStream>,
 }
 
 impl PeerConnection {
-    pub fn new(stream: TcpStream, network_manager: Arc<NetworkManager>) -> Self {
-        Self {
-            stream,
-            network_manager,
-        }
+    pub fn new(stream: TcpStream) -> std::io::Result<Self> {
+        let address = stream.peer_addr()?;
+        let write_stream = stream.try_clone()?;
+
+        Ok(Self {
+            address,
+            read_stream: Mutex::new(stream),
+            write_stream: Mutex::new(write_stream),
+        })
     }
 
-    pub fn spawn(stream: TcpStream, network_manager: Arc<NetworkManager>) {
+    pub fn start(self: &Arc<Self>, network_manager: Arc<NetworkManager>) {
+        let connection = Arc::clone(self);
+
         thread::spawn(move || {
-            let mut connection = Self::new(stream, network_manager);
-            connection.run();
+            connection.run(network_manager);
         });
     }
 
-    fn run(&mut self) {
-        let address: SocketAddr = self.stream.peer_addr().unwrap();
-        println!("Connection opened: {}", address);
+    fn run(self: Arc<Self>, network_manager: Arc<NetworkManager>) {
+        println!("Connection opened: {}", self.address);
 
-        let mut buffer = [0; 1024];
+        let peer = match self.perform_handshake(&network_manager) {
+            Ok(peer) => peer,
+            Err(error) => return self.handle_handshake_error(error),
+        };
+
+        let public_key = peer.public_key().to_vec();
+        network_manager.register_peer(peer, Arc::clone(&self));
+        self.listen(public_key, &network_manager);
+    }
+
+    fn perform_handshake(&self, network_manager: &NetworkManager) -> std::io::Result<Peer> {
+        let mut stream = self.read_stream.lock().unwrap();
+        HandshakeProtocol::perform(
+            &mut *stream,
+            network_manager.local_port(),
+            network_manager.local_public_key(),
+        )
+    }
+
+    fn listen(&self, public_key: Vec<u8>, network_manager: &NetworkManager) {
+        let mut stream = self.read_stream.lock().unwrap();
+        let mut buffer = [0u8; 1024];
 
         loop {
-            match self.stream.read(&mut buffer) {
-                Ok(0) => return self.handle_close(address),
-                Ok(bytes) => println!("{}: {}", address, String::from_utf8_lossy(&buffer[..bytes])),
-                Err(error) => return self.handle_error(address, error),
+            match stream.read(&mut buffer) {
+                Ok(0) => return self.handle_close(&public_key, network_manager),
+                Ok(bytes) => println!(
+                    "{}: {}",
+                    self.address,
+                    String::from_utf8_lossy(&buffer[..bytes])
+                ),
+                Err(error) => return self.handle_error(&public_key, network_manager, error),
             }
         }
     }
 
-    fn handle_close(&self, address: SocketAddr) {
-        self.network_manager.remove_connection(address);
-        println!("Connection closed: {}", address);
+    pub fn send(&self, data: &[u8]) -> std::io::Result<()> {
+        self.write_stream.lock().unwrap().write_all(data)
     }
 
-    fn handle_error(&self, address: SocketAddr, error: std::io::Error) {
-        println!("Connection error {}: {}", address, error);
-        self.handle_close(address);
+    fn handle_close(&self, public_key: &[u8], network_manager: &NetworkManager) {
+        network_manager.remove_connection(public_key);
+        println!("Connection closed: {}", self.address);
+    }
+
+    fn handle_error(
+        &self,
+        public_key: &[u8],
+        network_manager: &NetworkManager,
+        error: std::io::Error,
+    ) {
+        println!("Connection error {}: {}", self.address, error);
+        self.handle_close(public_key, network_manager);
+    }
+
+    fn handle_handshake_error(&self, error: std::io::Error) {
+        println!("Handshake failed {}: {}", self.address, error);
     }
 }

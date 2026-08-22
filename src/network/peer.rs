@@ -1,18 +1,16 @@
-pub type PeerId = u64;
-
 pub struct Peer {
-    id: PeerId,
     host: String,
     port: u16,
+    public_key: Vec<u8>,
 }
 
 impl Peer {
-    pub fn new(id: PeerId, host: String, port: u16) -> Self {
-        Self { id, host, port }
-    }
-
-    pub fn id(&self) -> PeerId {
-        self.id
+    pub fn new(host: String, port: u16, public_key: Vec<u8>) -> Self {
+        Self {
+            host,
+            port,
+            public_key,
+        }
     }
 
     pub fn host(&self) -> &str {
@@ -21,5 +19,9 @@ impl Peer {
 
     pub fn port(&self) -> u16 {
         self.port
+    }
+
+    pub fn public_key(&self) -> &[u8] {
+        &self.public_key
     }
 }
