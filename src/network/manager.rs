@@ -3,7 +3,7 @@ use crate::network::connection::PeerConnection;
 use crate::network::peer::Peer;
 use crate::network::server::Server;
 use std::collections::HashMap;
-use std::net::TcpStream;
+use std::net::{SocketAddr, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -24,6 +24,7 @@ impl NetworkManager {
 
     pub fn start_network(self: &Arc<Self>) {
         self.start_server();
+        self.connect_bootstrap();
     }
 
     fn start_server(self: &Arc<Self>) {
@@ -32,6 +33,19 @@ impl NetworkManager {
         thread::spawn(move || {
             server.start();
         });
+    }
+
+    fn connect_bootstrap(self: &Arc<Self>) {
+        if let Some(address) = self.config.bootstrap() {
+            self.connect(address);
+        }
+    }
+
+    pub fn connect(self: &Arc<Self>, address: SocketAddr) {
+        match TcpStream::connect(address) {
+            Ok(stream) => self.handle_connection(stream),
+            Err(error) => println!("Failed to connect to {}: {}", address, error),
+        }
     }
 
     pub fn handle_connection(self: &Arc<Self>, stream: TcpStream) {

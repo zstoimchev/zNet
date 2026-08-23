@@ -4,14 +4,16 @@ pub struct NetworkConfig {
     address: IpAddr,
     port: u16,
     public_key: Vec<u8>,
+    bootstrap: Option<SocketAddr>,
 }
 
 impl NetworkConfig {
-    pub fn new(port: u16, public_key: Vec<u8>) -> Self {
+    pub fn new(port: u16, public_key: Vec<u8>, bootstrap: Option<SocketAddr>) -> Self {
         Self {
             address: IpAddr::V4(Ipv4Addr::LOCALHOST),
             port,
             public_key,
+            bootstrap,
         }
     }
 
@@ -25,5 +27,9 @@ impl NetworkConfig {
 
     pub fn socket_address(&self) -> SocketAddr {
         SocketAddr::new(self.address, self.port)
+    }
+
+    pub fn bootstrap(&self) -> Option<SocketAddr> {
+        self.bootstrap
     }
 }
