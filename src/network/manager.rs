@@ -1,81 +1,58 @@
-use crate::identity::NodeIdentity;
-use crate::network::config::NetworkConfig;
-use crate::network::connection::PeerConnection;
-use crate::network::peer::Peer;
-use crate::network::server::Server;
-use std::collections::HashMap;
-use std::net::{SocketAddr, TcpStream};
-use std::sync::{Arc, Mutex};
+use crate::config::NetworkConfig;
+use crate::transport::{ConnectionId, ConnectionManager, Server};
+
+use std::io;
+use std::net::SocketAddr;
+use std::sync::Arc;
 use std::thread;
 
 pub struct NetworkManager {
     config: NetworkConfig,
-    identity: NodeIdentity,
-    peers: Mutex<HashMap<Vec<u8>, Peer>>,
-    connections: Mutex<HashMap<Vec<u8>, Arc<PeerConnection>>>,
+    connections: Arc<ConnectionManager>,
 }
 
 impl NetworkManager {
-    pub fn new(config: NetworkConfig, identity: NodeIdentity) -> Self {
+    pub fn new(config: NetworkConfig) -> Self {
         Self {
             config,
-            identity,
-            peers: Mutex::new(HashMap::new()),
-            connections: Mutex::new(HashMap::new()),
+            connections: Arc::new(ConnectionManager::new()),
         }
     }
 
-    pub fn start_network(self: &Arc<Self>) {
-        self.start_server();
-        self.connect_bootstrap();
+    pub fn start(self: &Arc<Self>) -> io::Result<()> {
+        self.start_server()?;
+        self.connect_bootstrap_peers();
+
+        Ok(())
     }
 
-    fn start_server(self: &Arc<Self>) {
-        let server = Server::new(self.config.socket_address(), Arc::clone(self));
+    fn start_server(self: &Arc<Self>) -> io::Result<()> {
+        let server = Server::bind(self.config.listen_address(), Arc::clone(&self.connections))?;
 
         thread::spawn(move || {
-            server.start();
+            server.run();
         });
+
+        Ok(())
     }
 
-    fn connect_bootstrap(self: &Arc<Self>) {
-        if let Some(address) = self.config.bootstrap() {
-            self.connect(address);
+    fn connect_bootstrap_peers(self: &Arc<Self>) {
+        for address in self.config.bootstrap_peers() {
+            if let Err(error) = self.connect(*address) {
+                println!("Failed to connect to bootstrap {}: {}", address, error);
+            }
         }
     }
 
-    pub fn connect(self: &Arc<Self>, address: SocketAddr) {
-        match TcpStream::connect(address) {
-            Ok(stream) => self.handle_connection(stream),
-            Err(error) => println!("Failed to connect to {}: {}", address, error),
-        }
+    pub fn connect(self: &Arc<Self>, address: SocketAddr) -> io::Result<ConnectionId> {
+        self.connections.connect(address)
     }
 
-    pub fn handle_connection(self: &Arc<Self>, stream: TcpStream) {
-        match PeerConnection::new(stream) {
-            Ok(connection) => Arc::new(connection).start(Arc::clone(self)),
-            Err(error) => println!("Failed to create connection: {}", error),
-        }
+    pub fn send(&self, connection: ConnectionId, data: &[u8]) -> io::Result<()> {
+        self.connections.send(connection, data)
     }
 
-    pub fn register_peer(&self, peer: Peer, connection: Arc<PeerConnection>) {
-        let public_key = peer.public_key().to_vec();
-        self.peers.lock().unwrap().insert(public_key.clone(), peer);
-        self.connections
-            .lock()
-            .unwrap()
-            .insert(public_key, connection);
-    }
-
-    pub fn remove_connection(&self, public_key: &[u8]) {
-        self.connections.lock().unwrap().remove(public_key);
-    }
-
-    pub fn local_port(&self) -> u16 {
-        self.config.port()
-    }
-
-    pub fn local_public_key(&self) -> &[u8] {
-        self.identity.public_key()
+    pub fn connection_count(&self) -> usize {
+        self.connections.connection_count()
     }
 }
