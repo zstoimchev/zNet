@@ -1,6 +1,8 @@
 use crate::network::manager::NetworkManager;
 use crate::network::peer::Peer;
+use crate::protocol::frame::Frame;
 use crate::protocol::handshake::HandshakeProtocol;
+use crate::protocol::message::MessageType;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::sync::{Arc, Mutex};
@@ -57,23 +59,56 @@ impl PeerConnection {
 
     fn listen(&self, public_key: Vec<u8>, network_manager: &NetworkManager) {
         let mut stream = self.read_stream.lock().unwrap();
-        let mut buffer = [0u8; 1024];
 
         loop {
-            match stream.read(&mut buffer) {
-                Ok(0) => return self.handle_close(&public_key, network_manager),
-                Ok(bytes) => println!(
-                    "{}: {}",
-                    self.address,
-                    String::from_utf8_lossy(&buffer[..bytes])
-                ),
-                Err(error) => return self.handle_error(&public_key, network_manager, error),
+            let frame = match Frame::read(&mut *stream) {
+                Ok(frame) => frame,
+
+                Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => {
+                    return self.handle_close(&public_key, network_manager);
+                }
+
+                Err(error) => {
+                    return self.handle_error(&public_key, network_manager, error);
+                }
+            };
+
+            self.handle_frame(frame);
+        }
+    }
+
+    fn handle_frame(&self, frame: Frame) {
+        let (message_type, flags, payload) = frame.into_parts();
+
+        match message_type {
+            MessageType::Handshake => {
+                println!("Unexpected handshake from {}", self.address);
+            }
+
+            MessageType::PeerDiscoveryRequest => {
+                println!("Peer discovery request");
+            }
+
+            MessageType::PeerDiscoveryResponse => {
+                println!("Peer discovery response");
+            }
+
+            MessageType::Heartbeat => {
+                println!("Heartbeat");
+            }
+
+            MessageType::Data => {
+                println!("{}: {}", self.address, String::from_utf8_lossy(&payload),);
             }
         }
     }
 
-    pub fn send(&self, data: &[u8]) -> std::io::Result<()> {
-        self.write_stream.lock().unwrap().write_all(data)
+    pub fn send(&self, message_type: MessageType, payload: Vec<u8>) -> std::io::Result<()> {
+        let frame = Frame::new(message_type, 0, payload);
+
+        let mut stream = self.write_stream.lock().unwrap();
+
+        frame.write(&mut *stream)
     }
 
     fn handle_close(&self, public_key: &[u8], network_manager: &NetworkManager) {

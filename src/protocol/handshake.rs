@@ -1,8 +1,15 @@
 use crate::network::peer::Peer;
-use std::io::{Error, ErrorKind, Read, Write};
+use crate::protocol::frame::Frame;
+use crate::protocol::message::MessageType;
+use std::io::{Error, ErrorKind};
 use std::net::TcpStream;
 
 pub struct HandshakeProtocol;
+
+struct HandshakePayload {
+    port: u16,
+    public_key: Vec<u8>,
+}
 
 impl HandshakeProtocol {
     pub fn perform(
@@ -15,47 +22,61 @@ impl HandshakeProtocol {
     }
 
     fn send(stream: &mut TcpStream, port: u16, public_key: &[u8]) -> std::io::Result<()> {
-        stream.write_all(b"ZNET")?;
-        stream.write_all(&[1])?;
-        stream.write_all(&port.to_be_bytes())?;
-        stream.write_all(&(public_key.len() as u16).to_be_bytes())?;
-        stream.write_all(public_key)?;
-
-        Ok(())
+        let payload = Self::encode_payload(port, public_key)?;
+        let frame = Frame::new(MessageType::Handshake, 0, payload);
+        frame.write(stream)
     }
 
     fn receive(stream: &mut TcpStream) -> std::io::Result<Peer> {
-        let mut magic = [0u8; 4];
-        stream.read_exact(&mut magic)?;
+        let frame = Frame::read(stream)?;
+        let (message_type, _, payload) = frame.into_parts();
 
-        if &magic != b"ZNET" {
-            return Err(Error::new(ErrorKind::InvalidData, "Invalid handshake"));
+        match message_type {
+            MessageType::Handshake => {}
+            _ => return Err(Error::new(ErrorKind::InvalidData, "Expected handshake")),
         }
 
-        let mut version = [0u8; 1];
-        stream.read_exact(&mut version)?;
+        let handshake = Self::decode_payload(&payload)?;
+        let host = stream.peer_addr()?.ip().to_string();
 
-        if version[0] != 1 {
+        Ok(Peer::new(host, handshake.port, handshake.public_key))
+    }
+
+    fn encode_payload(port: u16, public_key: &[u8]) -> std::io::Result<Vec<u8>> {
+        if public_key.len() > u16::MAX as usize {
+            return Err(Error::new(ErrorKind::InvalidData, "Public key too large"));
+        }
+
+        let mut payload = Vec::new();
+
+        payload.extend_from_slice(&port.to_be_bytes());
+        payload.extend_from_slice(&(public_key.len() as u16).to_be_bytes());
+        payload.extend_from_slice(public_key);
+
+        Ok(payload)
+    }
+
+    fn decode_payload(payload: &[u8]) -> std::io::Result<HandshakePayload> {
+        if payload.len() < 4 {
             return Err(Error::new(
                 ErrorKind::InvalidData,
-                "Unsupported protocol version",
+                "Invalid handshake payload",
             ));
         }
 
-        let mut port = [0u8; 2];
-        stream.read_exact(&mut port)?;
+        let port = u16::from_be_bytes([payload[0], payload[1]]);
 
-        let mut key_length = [0u8; 2];
-        stream.read_exact(&mut key_length)?;
+        let key_length = u16::from_be_bytes([payload[2], payload[3]]) as usize;
 
-        let port = u16::from_be_bytes(port);
-        let key_length = u16::from_be_bytes(key_length) as usize;
+        if key_length != payload.len() - 4 {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "Invalid public key length",
+            ));
+        }
 
-        let mut public_key = vec![0u8; key_length];
-        stream.read_exact(&mut public_key)?;
+        let public_key = payload[4..].to_vec();
 
-        let host = stream.peer_addr()?.ip().to_string();
-
-        Ok(Peer::new(host, port, public_key))
+        Ok(HandshakePayload { port, public_key })
     }
 }
