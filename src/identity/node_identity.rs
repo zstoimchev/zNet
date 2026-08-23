@@ -1,6 +1,7 @@
 use crate::config::IdentityConfig;
 use crate::crypto::{KeyPair, KeyStore};
 
+use crate::peer::PeerId;
 use std::io;
 
 pub struct NodeIdentity {
@@ -18,5 +19,9 @@ impl NodeIdentity {
 
     pub fn public_key(&self) -> [u8; 33] {
         self.key_pair.public_key_bytes()
+    }
+
+    pub fn peer_id(&self) -> PeerId {
+        PeerId::from_public_key(self.key_pair.public_key_bytes())
     }
 }

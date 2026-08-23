@@ -1,8 +1,11 @@
 use crate::crypto::key_pair::{KeyPair, PRIVATE_KEY_LENGTH};
 
 use std::fs;
+use std::fs::OpenOptions;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::io::Write;
+use std::os::unix::fs::OpenOptionsExt;
+use std::path::PathBuf;
 
 pub struct KeyStore {
     path: PathBuf,
@@ -43,10 +46,12 @@ impl KeyStore {
             fs::create_dir_all(parent)?;
         }
 
-        fs::write(&self.path, key_pair.private_key_bytes())
-    }
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&self.path)?;
 
-    pub fn path(&self) -> &Path {
-        &self.path
+        file.write_all(&key_pair.private_key_bytes())
     }
 }

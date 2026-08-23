@@ -27,10 +27,6 @@ impl KeyPair {
         self.signing_key.to_bytes().into()
     }
 
-    pub fn public_key(&self) -> &VerifyingKey {
-        self.signing_key.verifying_key()
-    }
-
     pub fn public_key_bytes(&self) -> [u8; PUBLIC_KEY_LENGTH] {
         let encoded = self.signing_key.verifying_key().to_sec1_point(true);
 
