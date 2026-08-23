@@ -1,16 +1,15 @@
-use std::path::Path;
-use std::sync::Arc;
-use std::thread;
-use znet::identity::NodeIdentity;
-use znet::network::config::NetworkConfig;
-use znet::network::manager::NetworkManager;
+use znet::{NetworkConfig, ZNet};
 
-fn main() {
-    let identity = NodeIdentity::load_or_generate(Path::new("client.identity.pem")).unwrap();
-    let config = NetworkConfig::new(12138, Some("127.0.0.1:12137".parse().unwrap()));
-    let network_manager = Arc::new(NetworkManager::new(config, identity));
-    network_manager.start_network();
-    loop {
-        thread::park();
-    }
+fn main() -> std::io::Result<()> {
+    let network = ZNet::new(NetworkConfig::new(9001));
+
+    network.start()?;
+
+    let connection = network.connect("127.0.0.1:9000".parse().unwrap())?;
+
+    network.send(connection, b"Hello from zNet")?;
+
+    std::thread::sleep(std::time::Duration::from_secs(1));
+
+    Ok(())
 }

@@ -28,7 +28,7 @@
 
 * [ ] Create `PeerId`
 * [ ] Create `PeerInfo`
-* [ ] Create `PeerConnection`
+* [ ] Create `Connection`
 * [ ] Hide raw TCP streams from public API
 
 ## Phase 5 — ZNet Core
