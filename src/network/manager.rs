@@ -1,6 +1,7 @@
 use crate::config::NetworkConfig;
 use crate::transport::{ConnectionId, ConnectionManager, Server};
 
+use crate::identity::NodeIdentity;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -8,13 +9,15 @@ use std::thread;
 
 pub struct NetworkManager {
     config: NetworkConfig,
+    identity: NodeIdentity,
     connections: Arc<ConnectionManager>,
 }
 
 impl NetworkManager {
-    pub fn new(config: NetworkConfig) -> Self {
+    pub fn new(config: NetworkConfig, identity: NodeIdentity) -> Self {
         Self {
             config,
+            identity,
             connections: Arc::new(ConnectionManager::new()),
         }
     }
@@ -54,5 +57,9 @@ impl NetworkManager {
 
     pub fn connection_count(&self) -> usize {
         self.connections.connection_count()
+    }
+
+    pub(crate) fn local_public_key(&self) -> [u8; 33] {
+        self.identity.public_key()
     }
 }
