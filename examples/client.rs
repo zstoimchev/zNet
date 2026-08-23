@@ -1,12 +1,22 @@
-use std::io::Write;
 use std::net::TcpStream;
+use std::sync::Arc;
+use std::thread;
+
+use znet::network::config::NetworkConfig;
+use znet::network::manager::NetworkManager;
 
 fn main() {
-    let mut stream = TcpStream::connect("127.0.0.1:9000").expect("Failed to connect to server");
+    let config = NetworkConfig::new(12138, vec![4, 5, 6]);
+    let network_manager = Arc::new(NetworkManager::new(config));
 
-    println!("Connected to {}", stream.peer_addr().unwrap());
+    network_manager.start_network();
 
-    stream
-        .write_all(b"Hello from client")
-        .expect("Failed to send message");
+    let stream = TcpStream::connect("127.0.0.1:12137")
+        .expect("Failed to connect");
+
+    network_manager.handle_connection(stream);
+
+    loop {
+        thread::park();
+    }
 }
