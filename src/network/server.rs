@@ -2,7 +2,6 @@ use crate::network::manager::NetworkManager;
 use std::net::{SocketAddr, TcpListener};
 use std::sync::Arc;
 
-#[derive(Clone)]
 pub struct Server {
     address: SocketAddr,
     network_manager: Arc<NetworkManager>,

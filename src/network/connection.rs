@@ -41,6 +41,7 @@ impl PeerConnection {
         };
 
         let public_key = peer.public_key().to_vec();
+        println!("Connected to peer with public key: {:02x?}", public_key);
         network_manager.register_peer(peer, Arc::clone(&self));
         self.listen(public_key, &network_manager);
     }

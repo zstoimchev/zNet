@@ -1,3 +1,4 @@
+use crate::identity::NodeIdentity;
 use crate::network::config::NetworkConfig;
 use crate::network::connection::PeerConnection;
 use crate::network::peer::Peer;
@@ -9,14 +10,16 @@ use std::thread;
 
 pub struct NetworkManager {
     config: NetworkConfig,
+    identity: NodeIdentity,
     peers: Mutex<HashMap<Vec<u8>, Peer>>,
     connections: Mutex<HashMap<Vec<u8>, Arc<PeerConnection>>>,
 }
 
 impl NetworkManager {
-    pub fn new(config: NetworkConfig) -> Self {
+    pub fn new(config: NetworkConfig, identity: NodeIdentity) -> Self {
         Self {
             config,
+            identity,
             peers: Mutex::new(HashMap::new()),
             connections: Mutex::new(HashMap::new()),
         }
@@ -73,6 +76,6 @@ impl NetworkManager {
     }
 
     pub fn local_public_key(&self) -> &[u8] {
-        self.config.public_key()
+        self.identity.public_key()
     }
 }
