@@ -15,12 +15,7 @@ impl NodeIdentity {
             SigningKey::read_pkcs8_pem_file(path)?
         } else {
             let signing_key = SigningKey::generate();
-
-            signing_key.write_pkcs8_pem_file(
-                path,
-                LineEnding::LF,
-            )?;
-
+            signing_key.write_pkcs8_pem_file(path, LineEnding::LF)?;
             signing_key
         };
 
