@@ -1,4 +1,5 @@
 use crate::transport::{Connection, ConnectionId};
+use crate::wire::Frame;
 use std::collections::HashMap;
 use std::io;
 use std::net::{SocketAddr, TcpStream};
@@ -52,7 +53,7 @@ impl ConnectionManager {
         Ok(id)
     }
 
-    pub fn send(&self, id: ConnectionId, data: &[u8]) -> io::Result<()> {
+    pub fn send(&self, id: ConnectionId, frame: &Frame) -> io::Result<()> {
         let connection = self
             .connections
             .lock()
@@ -61,7 +62,7 @@ impl ConnectionManager {
             .cloned()
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotConnected, "Connection not found"))?;
 
-        connection.send(data)
+        connection.send(frame)
     }
 
     pub fn connection_count(&self) -> usize {

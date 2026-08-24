@@ -3,6 +3,7 @@ use crate::transport::{ConnectionId, ConnectionManager, Server};
 
 use crate::identity::NodeIdentity;
 use crate::peer::{PeerId, PeerRegistry};
+use crate::wire::{Frame, FrameType};
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -55,7 +56,8 @@ impl NetworkManager {
     }
 
     pub fn send(&self, connection: ConnectionId, data: &[u8]) -> io::Result<()> {
-        self.connections.send(connection, data)
+        let frame = Frame::new(FrameType::Data, data.to_vec());
+        self.connections.send(connection, &frame)
     }
 
     pub(crate) fn local_peer_id(&self) -> PeerId {
