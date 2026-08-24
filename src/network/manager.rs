@@ -58,19 +58,11 @@ impl NetworkManager {
         self.connections.send(connection, data)
     }
 
-    pub fn connection_count(&self) -> usize {
-        self.connections.connection_count()
-    }
-
     pub(crate) fn local_public_key(&self) -> [u8; 33] {
         self.identity.public_key()
     }
 
     pub(crate) fn local_peer_id(&self) -> PeerId {
         self.identity.peer_id()
-    }
-
-    pub fn peer_count(&self) -> usize {
-        self.peers.peer_count()
     }
 }

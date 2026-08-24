@@ -11,9 +11,7 @@ pub struct NodeIdentity {
 impl NodeIdentity {
     pub fn load_or_create(config: &IdentityConfig) -> io::Result<Self> {
         let key_store = KeyStore::new(config.key_path());
-
         let key_pair = key_store.load_or_create()?;
-
         Ok(Self { key_pair })
     }
 
@@ -25,3 +23,4 @@ impl NodeIdentity {
         PeerId::from_public_key(self.key_pair.public_key_bytes())
     }
 }
+    

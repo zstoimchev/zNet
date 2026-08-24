@@ -13,9 +13,7 @@ pub struct ZNet {
 impl ZNet {
     pub fn new(network_config: NetworkConfig, identity_config: IdentityConfig) -> io::Result<Self> {
         let identity = NodeIdentity::load_or_create(&identity_config)?;
-
         let network_manager = Arc::new(NetworkManager::new(network_config, identity));
-
         Ok(Self { network_manager })
     }
 
@@ -29,9 +27,5 @@ impl ZNet {
 
     pub fn send(&self, connection: ConnectionId, data: &[u8]) -> io::Result<()> {
         self.network_manager.send(connection, data)
-    }
-
-    pub fn connection_count(&self) -> usize {
-        self.network_manager.connection_count()
     }
 }

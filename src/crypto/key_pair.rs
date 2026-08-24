@@ -19,7 +19,6 @@ impl KeyPair {
         bytes: &[u8; PRIVATE_KEY_LENGTH],
     ) -> Result<Self, p256::ecdsa::Error> {
         let signing_key = SigningKey::from_bytes(bytes.into())?;
-
         Ok(Self { signing_key })
     }
 
@@ -29,10 +28,8 @@ impl KeyPair {
 
     pub fn public_key_bytes(&self) -> [u8; PUBLIC_KEY_LENGTH] {
         let encoded = self.signing_key.verifying_key().to_sec1_point(true);
-
         let mut bytes = [0u8; PUBLIC_KEY_LENGTH];
         bytes.copy_from_slice(encoded.as_bytes());
-
         bytes
     }
 }
