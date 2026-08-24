@@ -1,5 +1,5 @@
+use crate::wire::Frame;
 use std::io;
-use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::sync::Mutex;
 
@@ -17,47 +17,34 @@ impl ConnectionId {
 }
 
 pub struct Connection {
-    id: ConnectionId,
     address: SocketAddr,
     stream: Mutex<TcpStream>,
 }
 
 impl Connection {
-    pub fn new(id: ConnectionId, stream: TcpStream) -> io::Result<Self> {
+    pub fn new(stream: TcpStream) -> io::Result<Self> {
         let address = stream.peer_addr()?;
 
         Ok(Self {
-            id,
             address,
             stream: Mutex::new(stream),
         })
-    }
-
-    pub fn id(&self) -> ConnectionId {
-        self.id
     }
 
     pub fn address(&self) -> SocketAddr {
         self.address
     }
 
-    pub fn send(&self, data: &[u8]) -> io::Result<()> {
-        self.stream.lock().unwrap().write_all(data)
+    pub(crate) fn send(&self, frame: &Frame) -> io::Result<()> {
+        let mut stream = self.stream.lock().unwrap();
+        frame.write_to(&mut *stream)
     }
 
     pub(crate) fn run(&self) -> io::Result<()> {
         let mut stream = self.stream.lock().unwrap().try_clone()?;
-
-        let mut buffer = [0u8; 4096];
-
         loop {
-            let bytes_read = stream.read(&mut buffer)?;
-
-            if bytes_read == 0 {
-                return Ok(());
-            }
-
-            println!("Received {} bytes from {}", bytes_read, self.address);
+            let frame = Frame::read_from(&mut stream)?;
+            println!("Received {:?} frame from {}", frame.frame_type(), self.address);
         }
     }
 }

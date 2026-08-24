@@ -15,12 +15,7 @@ impl NodeIdentity {
         Ok(Self { key_pair })
     }
 
-    pub fn public_key(&self) -> [u8; 33] {
-        self.key_pair.public_key_bytes()
-    }
-
     pub fn peer_id(&self) -> PeerId {
         PeerId::from_public_key(self.key_pair.public_key_bytes())
     }
 }
-    

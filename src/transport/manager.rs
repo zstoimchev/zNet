@@ -30,7 +30,7 @@ impl ConnectionManager {
 
     fn register(self: &Arc<Self>, stream: TcpStream) -> io::Result<ConnectionId> {
         let id = ConnectionId::new(self.next_id.fetch_add(1, Ordering::Relaxed));
-        let connection = Arc::new(Connection::new(id, stream)?);
+        let connection = Arc::new(Connection::new(stream)?);
 
         self.connections
             .lock()

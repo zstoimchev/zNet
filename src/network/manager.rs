@@ -58,10 +58,6 @@ impl NetworkManager {
         self.connections.send(connection, data)
     }
 
-    pub(crate) fn local_public_key(&self) -> [u8; 33] {
-        self.identity.public_key()
-    }
-
     pub(crate) fn local_peer_id(&self) -> PeerId {
         self.identity.peer_id()
     }

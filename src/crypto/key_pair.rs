@@ -1,4 +1,4 @@
-use p256::ecdsa::{SigningKey, VerifyingKey};
+use p256::ecdsa::SigningKey;
 use p256::elliptic_curve::Generate;
 
 pub const PRIVATE_KEY_LENGTH: usize = 32;
