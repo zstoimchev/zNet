@@ -6,7 +6,8 @@ use crate::peer::{PeerId, PeerRegistry};
 use crate::wire::{Frame, FrameType};
 use std::io;
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::mpsc::Receiver;
+use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 
 pub struct NetworkManager {
@@ -14,23 +15,54 @@ pub struct NetworkManager {
     identity: NodeIdentity,
     peers: PeerRegistry,
     connections: Arc<ConnectionManager>,
+    frame_receiver: Mutex<Option<Receiver<(ConnectionId, Frame)>>>,
 }
 
 impl NetworkManager {
     pub fn new(config: NetworkConfig, identity: NodeIdentity) -> Self {
+        let (frame_sender, frame_receiver) = mpsc::channel();
+        let connections = Arc::new(ConnectionManager::new(frame_sender));
+
         Self {
             config,
             identity,
             peers: PeerRegistry::new(),
-            connections: Arc::new(ConnectionManager::new()),
+            connections,
+            frame_receiver: Mutex::new(Some(frame_receiver)),
         }
     }
 
     pub fn start(self: &Arc<Self>) -> io::Result<()> {
+        self.start_frame_handler();
         self.start_server()?;
         self.connect_bootstrap_peers();
-
         Ok(())
+    }
+
+    fn start_frame_handler(self: &Arc<Self>) {
+        let receiver = self
+            .frame_receiver
+            .lock()
+            .unwrap()
+            .take()
+            .expect("NetworkManager already started");
+
+        let manager = Arc::clone(self);
+
+        thread::spawn(move || {
+            while let Ok((connection_id, frame)) = receiver.recv() {
+                manager.handle_frame(connection_id, frame);
+            }
+        });
+    }
+
+    fn handle_frame(&self, connection_id: ConnectionId, frame: Frame) {
+        println!(
+            "NetworkManager received {:?} from connection {}: {:?}",
+            frame.frame_type(),
+            connection_id.value(),
+            String::from_utf8_lossy(frame.payload())
+        );
     }
 
     fn start_server(self: &Arc<Self>) -> io::Result<()> {

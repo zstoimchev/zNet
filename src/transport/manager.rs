@@ -4,19 +4,22 @@ use std::collections::HashMap;
 use std::io;
 use std::net::{SocketAddr, TcpStream};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
 pub struct ConnectionManager {
     next_id: AtomicU64,
     connections: Mutex<HashMap<ConnectionId, Arc<Connection>>>,
+    frame_sender: Sender<(ConnectionId, Frame)>,
 }
 
 impl ConnectionManager {
-    pub fn new() -> Self {
+    pub fn new(frame_sender: Sender<(ConnectionId, Frame)>) -> Self {
         Self {
             next_id: AtomicU64::new(1),
             connections: Mutex::new(HashMap::new()),
+            frame_sender,
         }
     }
 
@@ -40,10 +43,11 @@ impl ConnectionManager {
 
         println!("Connection {} opened: {}", id.value(), connection.address());
 
+        let frame_sender = self.frame_sender.clone();
         let manager = Arc::clone(self);
 
         thread::spawn(move || {
-            if let Err(error) = connection.run() {
+            if let Err(error) = connection.run(id, frame_sender) {
                 println!("Connection {} error: {}", id.value(), error);
             }
 
