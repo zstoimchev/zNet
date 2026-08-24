@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use znet::{IdentityConfig, NetworkConfig, ZNet};
 
 fn main() -> std::io::Result<()> {
@@ -7,6 +9,10 @@ fn main() -> std::io::Result<()> {
     )?;
 
     network.start()?;
+
+    let server_address: SocketAddr = "127.0.0.1:9000".parse().unwrap();
+    let connection = network.connect(server_address)?;
+    network.send(connection, b"Hello from client")?;
 
     loop {
         std::thread::park();

@@ -44,7 +44,12 @@ impl Connection {
         let mut stream = self.stream.lock().unwrap().try_clone()?;
         loop {
             let frame = Frame::read_from(&mut stream)?;
-            println!("Received {:?} frame from {}", frame.frame_type(), self.address);
+            println!(
+                "Received {:?} frame from {}: {:?}",
+                frame.frame_type(),
+                self.address,
+                String::from_utf8_lossy(frame.payload())
+            );
         }
     }
 }
