@@ -1,19 +1,20 @@
-use std::net::TcpStream;
-use std::sync::Arc;
-use std::thread;
+use std::net::SocketAddr;
 
-use znet::network::config::NetworkConfig;
-use znet::network::manager::NetworkManager;
+use znet::{IdentityConfig, NetworkConfig, ZNet};
 
-fn main() {
-    let config = NetworkConfig::new(
-        12138,
-        vec![4, 5, 6],
-        Some("127.0.0.1:12137".parse().unwrap()),
-    );
-    let network_manager = Arc::new(NetworkManager::new(config));
-    network_manager.start_network();
+fn main() -> std::io::Result<()> {
+    let network = ZNet::new(
+        NetworkConfig::new(9001),
+        IdentityConfig::new("./data/client.key"),
+    )?;
+
+    network.start()?;
+
+    let server_address: SocketAddr = "127.0.0.1:9000".parse().unwrap();
+    let connection = network.connect(server_address)?;
+    network.send(connection, b"Hello from client")?;
+
     loop {
-        thread::park();
+        std::thread::park();
     }
 }

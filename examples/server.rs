@@ -1,13 +1,14 @@
-use std::sync::Arc;
-use std::thread;
-use znet::network::config::NetworkConfig;
-use znet::network::manager::NetworkManager;
+use znet::{IdentityConfig, NetworkConfig, ZNet};
 
-fn main() {
-    let config = NetworkConfig::new(12137, vec![1, 2, 3], None);
-    let network_manager = Arc::new(NetworkManager::new(config));
-    network_manager.start_network();
+fn main() -> std::io::Result<()> {
+    let network = ZNet::new(
+        NetworkConfig::new(9000),
+        IdentityConfig::new("./data/server.key"),
+    )?;
+
+    network.start()?;
+
     loop {
-        thread::park();
+        std::thread::park();
     }
 }

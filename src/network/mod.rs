@@ -1,5 +1,3 @@
-pub mod config;
-pub mod connection;
-pub mod manager;
-pub mod peer;
-pub mod server;
+mod manager;
+
+pub(crate) use manager::NetworkManager;
