@@ -3,6 +3,7 @@ mod crypto;
 mod identity;
 mod network;
 mod peer;
+pub mod protocol;
 mod transport;
 mod wire;
 mod znet;

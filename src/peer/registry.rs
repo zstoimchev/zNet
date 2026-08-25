@@ -57,4 +57,13 @@ impl PeerRegistry {
     pub fn peer_count(&self) -> usize {
         self.peers.lock().unwrap().len()
     }
+
+    pub fn peer_by_connection(&self, connection: ConnectionId) -> Option<Peer> {
+        self.peers
+            .lock()
+            .unwrap()
+            .values()
+            .find(|entry| entry.connection == Some(connection))
+            .map(|entry| entry.peer.clone())
+    }
 }

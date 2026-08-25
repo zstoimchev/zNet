@@ -1,8 +1,10 @@
 use crate::config::NetworkConfig;
 use crate::transport::{ConnectionId, ConnectionManager, Server};
 
+use crate::Peer;
 use crate::identity::NodeIdentity;
 use crate::peer::{PeerId, PeerRegistry};
+use crate::protocol::{Handshake, HandshakeKind, PROTOCOL_VERSION};
 use crate::wire::{Frame, FrameType};
 use std::io;
 use std::net::SocketAddr;
@@ -57,12 +59,77 @@ impl NetworkManager {
     }
 
     fn handle_frame(&self, connection_id: ConnectionId, frame: Frame) {
+        let result = match frame.frame_type() {
+            FrameType::Handshake => self.handle_handshake(connection_id, frame.payload()),
+            FrameType::Data => self.handle_data(connection_id, frame.payload()),
+        };
+
+        if let Err(error) = result {
+            println!(
+                "Connection {} protocol error: {}",
+                connection_id.value(),
+                error
+            );
+        }
+    }
+
+    fn handle_handshake(&self, connection_id: ConnectionId, payload: &[u8]) -> io::Result<()> {
+        let handshake = Handshake::decode(payload)?;
+        if handshake.version() != PROTOCOL_VERSION {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Unsupported protocol version",
+            ));
+        }
+
+        let remote_address = self
+            .connections
+            .address(connection_id)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotConnected, "Connection not found"))?;
+
+        let peer_id = PeerId::from_public_key(handshake.public_key());
+        if peer_id == self.local_peer_id() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Cannot connect to self",
+            ));
+        }
+
+        let peer_address = SocketAddr::new(remote_address.ip(), handshake.listen_port());
+        let peer = Peer::new(peer_id, peer_address);
+
+        self.peers.register(peer, connection_id);
+
+        println!("Peer registered: {:?} at {}", peer_id, peer_address);
+
+        if handshake.kind() == HandshakeKind::Hello {
+            self.send_handshake(connection_id, HandshakeKind::Ack)?;
+        }
+
+        Ok(())
+    }
+
+    fn send_handshake(&self, connection_id: ConnectionId, kind: HandshakeKind) -> io::Result<()> {
+        let handshake = Handshake::new(kind, self.config.port(), self.identity.public_key_bytes());
+        let frame = Frame::new(FrameType::Handshake, handshake.encode());
+        self.connections.send(connection_id, &frame)
+    }
+
+    fn handle_data(&self, connection_id: ConnectionId, payload: &[u8]) -> io::Result<()> {
+        let peer = self
+            .peers
+            .peer_by_connection(connection_id)
+            .ok_or_else(|| {
+                io::Error::new(io::ErrorKind::PermissionDenied, "Handshake not completed")
+            })?;
+
         println!(
-            "NetworkManager received {:?} from connection {}: {:?}",
-            frame.frame_type(),
-            connection_id.value(),
-            String::from_utf8_lossy(frame.payload())
+            "Received data from {:?}: {:?}",
+            peer.id(),
+            String::from_utf8_lossy(payload)
         );
+        
+        Ok(())
     }
 
     fn start_server(self: &Arc<Self>) -> io::Result<()> {
@@ -84,7 +151,9 @@ impl NetworkManager {
     }
 
     pub fn connect(self: &Arc<Self>, address: SocketAddr) -> io::Result<ConnectionId> {
-        self.connections.connect(address)
+        let connection_id = self.connections.connect(address)?;
+        self.send_handshake(connection_id, HandshakeKind::Hello)?;
+        Ok(connection_id)
     }
 
     pub fn send(&self, connection: ConnectionId, data: &[u8]) -> io::Result<()> {

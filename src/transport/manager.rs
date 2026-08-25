@@ -78,4 +78,12 @@ impl ConnectionManager {
             println!("Connection {} closed: {}", id.value(), connection.address());
         }
     }
+
+    pub(crate) fn address(&self, id: ConnectionId) -> Option<SocketAddr> {
+        self.connections
+            .lock()
+            .unwrap()
+            .get(&id)
+            .map(|connection| connection.address())
+    }
 }
