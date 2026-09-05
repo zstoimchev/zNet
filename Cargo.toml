@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 p256 = { version = "0.14", features = ["ecdsa", "getrandom"] }
+getrandom = "0.4.3"

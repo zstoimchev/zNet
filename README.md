@@ -9,5 +9,5 @@ This way, no project will need to deal with connections, or network-specific pro
 The goal is to have one shared cross-platform library supported for all of the major programming languages (how is YET to be decided)...
 
 Rust was chosen because it is proven to be fast, it is indeed lower-level programming language, like/similar to C, and of course the thrill to learn it :). Not gonna be easy but will be worth it.
-
+soft
 Still in progress, so feel free to open issues for suggestions and improvements xD

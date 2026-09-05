@@ -1,7 +1,5 @@
 mod handshake;
 
 pub(crate) use handshake::{
-    Handshake,
-    HandshakeKind,
-    PROTOCOL_VERSION,
+    Handshake, Nonce, PROTOCOL_VERSION, generate_nonce, handshake_transcript,
 };

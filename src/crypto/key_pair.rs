@@ -1,8 +1,10 @@
-use p256::ecdsa::SigningKey;
+use p256::ecdsa::signature::{Signer, Verifier};
+use p256::ecdsa::{Signature, SigningKey, VerifyingKey};
 use p256::elliptic_curve::Generate;
 
 pub const PRIVATE_KEY_LENGTH: usize = 32;
 pub const PUBLIC_KEY_LENGTH: usize = 33;
+pub const SIGNATURE_LENGTH: usize = 64;
 
 pub struct KeyPair {
     signing_key: SigningKey,
@@ -31,5 +33,23 @@ impl KeyPair {
         let mut bytes = [0u8; PUBLIC_KEY_LENGTH];
         bytes.copy_from_slice(encoded.as_bytes());
         bytes
+    }
+
+    pub(crate) fn sign(&self, message: &[u8]) -> [u8; SIGNATURE_LENGTH] {
+        let signature: Signature = self.signing_key.sign(message);
+
+        signature.to_bytes().into()
+    }
+
+    pub(crate) fn verify(
+        public_key: &[u8; PUBLIC_KEY_LENGTH],
+        message: &[u8],
+        signature: &[u8; SIGNATURE_LENGTH],
+    ) -> Result<(), p256::ecdsa::Error> {
+        let verifying_key = VerifyingKey::from_sec1_bytes(public_key)?;
+
+        let signature = Signature::from_slice(signature)?;
+
+        verifying_key.verify(message, &signature)
     }
 }
