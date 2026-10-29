@@ -2,3 +2,4 @@
 *.identity.pem
 data/*
 Cargo.lock
+examples/*
