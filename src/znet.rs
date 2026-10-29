@@ -1,13 +1,19 @@
-use std::net::SocketAddr;
-
 pub struct ZNet {}
 
 impl ZNet {
-    pub fn new() {}
+    pub fn new() {
+        println!("zNet - new instance initialised")
+    }
 
-    pub fn start(&self) {}
+    pub fn start() {
+        println!("zNet - instance started")
+    }
 
-    pub fn connect(&self, address: SocketAddr) {}
+    pub fn connect() {
+        println!("zNet - connect to instance")
+    }
 
-    pub fn send(&self, data: &[u8]) {}
+    pub fn send() {
+        println!("zNet - send message to the network")
+    }
 }
