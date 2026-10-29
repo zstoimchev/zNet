@@ -1,16 +1,4 @@
-mod config;
-mod crypto;
-mod identity;
-mod network;
-mod peer;
-pub mod protocol;
-mod transport;
-mod wire;
+// zNet - Peer-to-peer networking library
+
 mod znet;
-
-pub use config::{IdentityConfig, NetworkConfig};
-
-pub use peer::{Peer, PeerId};
-
-pub use transport::ConnectionId;
 pub use znet::ZNet;
