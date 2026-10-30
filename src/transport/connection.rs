@@ -7,7 +7,7 @@ pub struct Connection {
 
 impl Connection {
     pub fn new(stream: TcpStream) -> Self {
-        println!("New connection from {:?}", stream.peer_addr());
+        println!("New connection from {}", stream.peer_addr().unwrap());
         Self { stream }
     }
 
