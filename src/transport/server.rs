@@ -8,11 +8,33 @@ pub fn start() -> Result<()> {
 
     for stream in listener.incoming() {
         let stream = stream?;
+
         thread::spawn(move || {
             let mut connection = Connection::new(stream);
 
-            if let Err(error) = connection.receive() {
-                eprintln!("Connection error: {error}");
+            loop {
+                match connection.receive() {
+                    Ok(Some(data)) => {
+                        let bytes_length = data.len();
+                        let message = String::from_utf8_lossy(&data);
+                        println!("Received {} bytes: {}", bytes_length, message);
+
+                        if let Err(error) = connection.send(&data) {
+                            eprintln!("Send error: {}", error);
+                            break;
+                        }
+                    }
+
+                    Ok(None) => {
+                        println!("Client disconnected");
+                        break;
+                    }
+
+                    Err(error) => {
+                        eprintln!("Connection error: {}", error);
+                        break;
+                    }
+                }
             }
         });
     }
